@@ -43,7 +43,7 @@ def main(argv):
     # Baidu: white, bw, black, pink, blue, red, yellow, purple, green, teal, orange, brown
     # Google: bw, red, orange, yellow, green, teal, blue, purple, pink, white, gray, black, brown
     parser.add_argument("--color", "-cl", type=str, default=None,
-                        help="Specify the color of desired images.") 
+                        help="Specify the color of desired images.")
 
     args = parser.parse_args(args=argv)
 
@@ -56,15 +56,18 @@ def main(argv):
         proxy_type = "socks5"
         proxy = args.proxy_socks5
 
-    crawled_urls = crawler.crawl_image_urls(args.keywords,
-                                            engine=args.engine, max_number=args.max_number,
-                                            face_only=args.face_only, safe_mode=args.safe_mode,
-                                            proxy_type=proxy_type, proxy=proxy,
-                                            browser=args.driver, image_type=args.type, color=args.color)
-    downloader.download_images(image_urls=crawled_urls, dst_dir=args.output,
-                               concurrency=args.num_threads, timeout=args.timeout,
-                               proxy_type=proxy_type, proxy=proxy,
-                               file_prefix=args.engine)
+    crawled_urls, crawled_webpages = crawler.crawl_image_urls(
+        args.keywords,
+        engine=args.engine, max_number=args.max_number,
+        face_only=args.face_only, safe_mode=args.safe_mode,
+        proxy_type=proxy_type, proxy=proxy,
+        browser=args.driver, image_type=args.type, color=args.color)
+    downloader.download_images(
+            image_urls=crawled_urls, webpage_urls=crawled_webpages,
+            dst_dir=args.output,
+            concurrency=args.num_threads, timeout=args.timeout,
+            proxy_type=proxy_type, proxy=proxy,
+            file_prefix=args.engine)
 
     print("Finished.")
 

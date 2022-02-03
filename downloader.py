@@ -21,7 +21,7 @@ headers = {
 }
 
 
-def download_image(image_url, dst_dir, file_name, timeout=20, proxy_type=None, proxy=None):
+def download_image(image_url, webpage_url, dst_dir, file_name, timeout=20, proxy_type=None, proxy=None):
     proxies = None
     if proxy_type is not None:
         proxies = {
@@ -42,11 +42,11 @@ def download_image(image_url, dst_dir, file_name, timeout=20, proxy_type=None, p
             response.close()
             file_type = imghdr.what(file_path)
             # if file_type is not None:
-            if file_type in ["jpg", "jpeg", "png", "bmp"]:
+            if file_type in ["jpg", "jpeg", "png", "bmp", "webp", "gif"]:
                 new_file_name = "{}.{}".format(file_name, file_type)
                 new_file_path = os.path.join(dst_dir, new_file_name)
                 shutil.move(file_path, new_file_path)
-                print("## OK:  {}  {}".format(new_file_name, image_url))
+                print("## OK:  {},  {}, {}".format(new_file_path, image_url, webpage_url))
             else:
                 os.remove(file_path)
                 print("## Err:  {}".format(image_url))
@@ -60,7 +60,7 @@ def download_image(image_url, dst_dir, file_name, timeout=20, proxy_type=None, p
             break
 
 
-def download_images(image_urls, dst_dir, file_prefix="img", concurrency=50, timeout=20, proxy_type=None, proxy=None):
+def download_images(image_urls, webpage_urls, dst_dir, file_prefix="img", concurrency=50, timeout=20, proxy_type=None, proxy=None):
     """
     Download image according to given urls and automatically rename them in order.
     :param timeout:
@@ -78,9 +78,9 @@ def download_images(image_urls, dst_dir, file_prefix="img", concurrency=50, time
         count = 0
         if not os.path.exists(dst_dir):
             os.makedirs(dst_dir)
-        for image_url in image_urls:
+        for image_url, webpage_url in zip(image_urls, webpage_urls):
             file_name = file_prefix + "_" + "%04d" % count
             future_list.append(executor.submit(
-                download_image, image_url, dst_dir, file_name, timeout, proxy_type, proxy))
+                download_image, image_url, webpage_url, dst_dir, file_name, timeout, proxy_type, proxy))
             count += 1
         concurrent.futures.wait(future_list, timeout=180)

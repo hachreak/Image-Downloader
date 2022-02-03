@@ -39,12 +39,12 @@ def google_gen_query_url(keywords, face_only=False, safe_mode=False, image_type=
     base_url = "https://www.google.com/search?tbm=isch&hl=en"
     keywords_str = "&q=" + quote(keywords)
     query_url = base_url + keywords_str
-    
+
     if safe_mode is True:
         query_url += "&safe=on"
     else:
         query_url += "&safe=off"
-    
+
     filter_url = "&tbs="
 
     if color is not None:
@@ -52,12 +52,12 @@ def google_gen_query_url(keywords, face_only=False, safe_mode=False, image_type=
             filter_url += "ic:gray%2C"
         else:
             filter_url += "ic:specific%2Cisc:{}%2C".format(color.lower())
-    
+
     if image_type is not None:
         if image_type.lower() == "linedrawing":
             image_type = "lineart"
         filter_url += "itp:{}".format(image_type)
-        
+
     if face_only is True:
         filter_url += "itp:face"
 
@@ -82,12 +82,13 @@ def google_image_url_from_webpage(driver, max_number, quiet=False):
             show_more = driver.find_elements_by_class_name("mye4qd")
             if len(show_more) == 1 and show_more[0].is_displayed() and show_more[0].is_enabled():
                 my_print("Click show_more button.", quiet)
-                show_more[0].click()
+                #  show_more[0].click()
+                driver.execute_script("arguments[0].click();", show_more[0])
             time.sleep(3)
         except Exception as e:
             print("Exception ", e)
             pass
-    
+
     if len(thumb_elements) == 0:
         return []
 
@@ -101,31 +102,59 @@ def google_image_url_from_webpage(driver, max_number, quiet=False):
             if not elem.is_displayed() or not elem.is_enabled():
                 retry_click.append(elem)
                 continue
-            elem.click()
+            #  elem.click()
+            driver.execute_script("arguments[0].click();", elem)
         except Exception as e:
             print("Error while clicking in thumbnail:", e)
             retry_click.append(elem)
 
-    if len(retry_click) > 0:    
+    if len(retry_click) > 0:
         my_print("Retry some failed clicks ...", quiet)
         for elem in retry_click:
             try:
                 if elem.is_displayed() and elem.is_enabled():
-                    elem.click()
+                    #  elem.click()
+                    driver.execute_script("arguments[0].click();", elem)
             except Exception as e:
                 print("Error while retrying click:", e)
-    
+
     image_elements = driver.find_elements_by_class_name("islib")
     image_urls = list()
     url_pattern = r"imgurl=\S*&amp;imgrefurl"
+    webpage_urls = []
 
-    for image_element in image_elements[:max_number]:
+    for idx in range(len(image_elements[:max_number])):
+        # reload to be sure
+        image_elements = driver.find_elements_by_class_name("islib")
+        try:
+            image_element = image_elements[idx]
+        except:
+            import ipdb; ipdb.set_trace()
+            print('ok')
         outer_html = image_element.get_attribute("outerHTML")
         re_group = re.search(url_pattern, outer_html)
         if re_group is not None:
             image_url = unquote(re_group.group()[7:-14])
             image_urls.append(image_url)
-    return image_urls
+            webpage_urls.append(google_get_webpage_url(driver, image_element))
+    return image_urls, webpage_urls
+
+
+def google_get_webpage_url(driver, image_element):
+    webpage_pattern = r"href=\"http\S*\""
+    #image_element.click()
+    driver.execute_script("arguments[0].click();", image_element)
+    time.sleep(2)
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(2)
+    try:
+        elem = driver.find_elements_by_id("islsp")[0]
+        inner_html = elem.get_attribute("innerHTML")
+        re_group = re.findall(webpage_pattern, inner_html)
+        groups = [g for g in re_group if "google" not in g]
+        return groups[0][6:-1]
+    except IndexError:
+        return ""
 
 
 def bing_gen_query_url(keywords, face_only=False, safe_mode=False, image_type=None, color=None):
@@ -135,10 +164,10 @@ def bing_gen_query_url(keywords, face_only=False, safe_mode=False, image_type=No
     filter_url = "&qft="
     if face_only is True:
         filter_url += "+filterui:face-face"
-    
+
     if image_type is not None:
         filter_url += "+filterui:photo-{}".format(image_type)
-    
+
     if color is not None:
         if color == "bw" or color == "color":
             filter_url += "+filterui:color2-{}".format(color.lower())
@@ -165,7 +194,8 @@ def bing_image_url_from_webpage(driver):
         else:
             smb = driver.find_elements_by_class_name("btn_seemore")
             if len(smb) > 0 and smb[0].is_displayed():
-                smb[0].click()
+                #  smb[0].click()
+                driver.execute_script("arguments[0].click();", smb[0])
             else:
                 break
         time.sleep(3)
@@ -248,7 +278,7 @@ def baidu_get_image_url_using_api(keywords, max_number=10000, face_only=False,
     }
 
     res = requests.get(init_url, proxies=proxies, headers=headers)
-    init_json = json.loads(res.text.replace(r"\'", ""), encoding='utf-8', strict=False)
+    init_json = json.loads(res.text.replace(r"\'", "").encode("utf-8"), strict=False)
     total_num = init_json['listNum']
 
     target_num = min(max_number, total_num)
@@ -275,7 +305,7 @@ def baidu_get_image_url_using_api(keywords, max_number=10000, face_only=False,
                         print(e)
                         return image_urls
             response.encoding = 'utf-8'
-            res_json = json.loads(response.text.replace(r"\'", ""), encoding='utf-8', strict=False)
+            res_json = json.loads(response.text.replace(r"\'", "").encode("utf-8"), strict=False)
             for data in res_json['data']:
                 if 'objURL' in data.keys():
                     image_urls.append(decode_url(data['objURL']))
@@ -296,7 +326,7 @@ def baidu_get_image_url_using_api(keywords, max_number=10000, face_only=False,
 
 
 def crawl_image_urls(keywords, engine="Google", max_number=10000,
-                     face_only=False, safe_mode=False, proxy=None, 
+                     face_only=False, safe_mode=False, proxy=None,
                      proxy_type="http", quiet=False, browser="phantomjs", image_type=None, color=None):
     """
     Scrape image urls of keywords from Google Image Search
@@ -307,7 +337,7 @@ def crawl_image_urls(keywords, engine="Google", max_number=10000,
     :param safe_mode: switch for safe mode of Google Search
     :param proxy: proxy address, example: socks5 127.0.0.1:1080
     :param proxy_type: socks5, http
-    :param browser: browser to use when crawl image urls from Google & Bing 
+    :param browser: browser to use when crawl image urls from Google & Bing
     :return: list of scraped image urls
     """
 
@@ -358,7 +388,7 @@ def crawl_image_urls(keywords, engine="Google", max_number=10000,
     if engine == "Google":
         driver.set_window_size(1920, 1080)
         driver.get(query_url)
-        image_urls = google_image_url_from_webpage(driver, max_number, quiet)
+        image_urls, webpage_urls = google_image_url_from_webpage(driver, max_number, quiet)
     elif engine == "Bing":
         driver.set_window_size(1920, 1080)
         driver.get(query_url)
@@ -380,4 +410,4 @@ def crawl_image_urls(keywords, engine="Google", max_number=10000,
     my_print("\n== {0} out of {1} crawled images urls will be used.\n".format(
         output_num, len(image_urls)), quiet)
 
-    return image_urls[0:output_num]
+    return image_urls[0:output_num], webpage_urls[:output_num]
