@@ -20,7 +20,7 @@ def read_csv(filename):
 
 @retry(Exception, tries=3, delay=1, backoff=2)
 def scrape_page(endpoint):
-    return requests.get(endpoint).text
+    return requests.get(endpoint, timeout=5).text
 
 
 def scrape(csv_file, dest_dir):
@@ -41,7 +41,8 @@ def scrape(csv_file, dest_dir):
             with open(dest_fname, 'w') as f:
                 f.write(page)
             yield dest_fname
-        except Exception:
+        except Exception as e:
+            print("Error for: {}\n{}".format(row[2], e))
             pass
 
 
